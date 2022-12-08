@@ -65,9 +65,13 @@ testset = torchvision.datasets.CIFAR10(root='./data', train=False,
 testloader = torch.utils.data.DataLoader(testset, batch_size=args.batch_size,
                                          shuffle=False, num_workers=args.workers)
 
+# Device
+device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+print(f"Using device: {device}")
+
 # Model Selection
 model = ConvMixer(args.hdim, args.depth, patch_size=args.psize, kernel_size=args.conv_ks, n_classes=10)
-model = nn.DataParallel(model).cuda()
+model = nn.DataParallel(model).to(device)
 
 # Training setting
 lr_schedule = lambda t: np.interp([t], [0, args.epochs*2//5, args.epochs*4//5, args.epochs], 
@@ -75,6 +79,7 @@ lr_schedule = lambda t: np.interp([t], [0, args.epochs*2//5, args.epochs*4//5, a
 
 opt = optim.AdamW(model.parameters(), lr=args.lr_max, weight_decay=args.wd)
 criterion = nn.CrossEntropyLoss()
+# GradScaler is cuda specific?
 scaler = torch.cuda.amp.GradScaler()
 
 # Training
@@ -83,13 +88,13 @@ for epoch in range(args.epochs):
     train_loss, train_acc, n = 0, 0, 0
     for i, (X, y) in enumerate(trainloader):
         model.train()
-        X, y = X.cuda(), y.cuda()
+        X, y = X.to(device), y.to(device)
 
         lr = lr_schedule(epoch + (i + 1)/len(trainloader))
         opt.param_groups[0].update(lr=lr)
 
         opt.zero_grad()
-        with torch.cuda.amp.autocast():
+        with torch.autocast(device=device):
             output = model(X)
             loss = criterion(output, y)
 
@@ -108,8 +113,8 @@ for epoch in range(args.epochs):
     test_acc, m = 0, 0
     with torch.no_grad():
         for i, (X, y) in enumerate(testloader):
-            X, y = X.cuda(), y.cuda()
-            with torch.cuda.amp.autocast():
+            X, y = X.to(device), y.to(device)
+            with torch.autocast(device=device):
                 output = model(X)
             test_acc += (output.max(1)[1] == y).sum().item()
             m += y.size(0)

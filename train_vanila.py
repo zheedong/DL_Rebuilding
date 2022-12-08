@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 import torch.nn.functional as F
+import time
 
 def train(dataloader, model, loss_fn, optimizer):
     size = len(dataloader.dataset)
@@ -71,25 +72,29 @@ for X, y in test_dataloader:
     print("Shape of y: ", y.shape, y.dtype)
     break
 
+# Device
+device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+print(f"Using device: {device}")
+
 # Model
 ## Change Whatever you want. Don't forget "to(device)"
-
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"Using {device} device")
-
-model = ConvMixer(dim=10, depth=5, n_classes=10).to(device)
+model = ConvMixer(dim=256, depth=8, patch_size=2, kernel_size=5, n_classes=10).to(device)
 # model = resnet18_pretrained.to(device)
 print(model)
 
 # Hyperparemeters
 loss_fn = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=9e-3)
-lambda1 = lambda epoch: 0.97 ** epoch
+optimizer = torch.optim.AdamW(model.parameters(), lr=0.05, weight_decay=0.005)
+lambda1 = lambda epoch: 0.85 ** epoch
 scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda1)
 
-epochs = 50
+epochs = 25
 for t in range(epochs):
     print(f"EPOCH {t+1}\n-------------------------------")
     train(train_dataloader, model, loss_fn, optimizer)
     scheduler.step()
     test(test_dataloader, model, loss_fn)
+
+# Save the model
+PATH = './weights'
+torch.save(model, f'{PATH}/{model.__class__.__name__}_{time.strftime("%Y%m%d_%H%M%S", time.localtime(time.time()))}.pt')
