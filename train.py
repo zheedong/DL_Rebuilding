@@ -94,7 +94,7 @@ for epoch in range(args.epochs):
         opt.param_groups[0].update(lr=lr)
 
         opt.zero_grad()
-        with torch.autocast(device=device):
+        with torch.autocast(device_type=device):
             output = model(X)
             loss = criterion(output, y)
 
@@ -114,7 +114,7 @@ for epoch in range(args.epochs):
     with torch.no_grad():
         for i, (X, y) in enumerate(testloader):
             X, y = X.to(device), y.to(device)
-            with torch.autocast(device=device):
+            with torch.autocast(device_type=device):
                 output = model(X)
             test_acc += (output.max(1)[1] == y).sum().item()
             m += y.size(0)
