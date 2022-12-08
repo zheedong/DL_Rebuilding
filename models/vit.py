@@ -40,7 +40,6 @@ class PatchEmbedding(nn.Module):
         self.cls_token = nn.Parameter(torch.randn(1,1, emb_size))
         self.positions = nn.Parameter(torch.randn((img_size // patch_size) **2 + 1, emb_size))
 
-        
     def forward(self, x: Tensor) -> Tensor:
         b, _, _, _ = x.shape
         x = self.projection(x)
